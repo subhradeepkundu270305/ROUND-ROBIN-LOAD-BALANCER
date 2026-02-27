@@ -269,7 +269,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 <div align="center">
 
-**Built with ❤️ using Go & Python**
+**Built with ❤️ by Subhradeep using Go & Python**
 
 *If you found this useful, drop a ⭐ on the repo!*
 
