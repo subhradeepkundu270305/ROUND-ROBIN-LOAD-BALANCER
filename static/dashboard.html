@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RR-BALANCER // TERMINAL DASHBOARD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet" />
+  <style>
+    /* ══ RESET ═══════════════════════════════════════════════════════════════ */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ══ ROOT TOKENS ═════════════════════════════════════════════════════════ */
+    :root {
+      --black: #020906;
+      --bg: #030d06;
+      --bg2: #061209;
+      --surface: rgba(0, 255, 65, 0.04);
+      --border: rgba(0, 255, 65, 0.18);
+      --border2: rgba(0, 255, 65, 0.08);
+      --green: #00ff41;
+      --green2: #00cc33;
+      --green-dim: #007a1a;
+      --cyan: #00ffcc;
+      --amber: #ffb800;
+      --red: #ff3333;
+      --text: #c8ffc8;
+      --muted: #3a6b3f;
+      --muted2: #1e3d22;
+      --radius: 4px;
+      --glow: 0 0 20px rgba(0, 255, 65, 0.35);
+      --glow-sm: 0 0 10px rgba(0, 255, 65, 0.2);
+      --font: 'JetBrains Mono', 'Share Tech Mono', monospace;
+    }
+
+    /* ══ BASE ════════════════════════════════════════════════════════════════ */
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ══ CRT SCANLINES OVERLAY ═══════════════════════════════════════════════ */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.08) 2px,
+          rgba(0, 0, 0, 0.08) 4px);
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ══ MATRIX CANVAS ═══════════════════════════════════════════════════════ */
+    #matrix-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      opacity: 0.07;
+      pointer-events: none;
+    }
+
+    /* Radial vignette */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 90% 90% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.6) 100%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ══ LAYOUT ══════════════════════════════════════════════════════════════ */
+    .wrapper {
+      position: relative;
+      z-index: 10;
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 1.5rem 1.5rem 2rem;
+    }
+
+    /* ══ TERMINAL WINDOW CHROME ══════════════════════════════════════════════ */
+    .term-window {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--glow), inset 0 0 40px rgba(0, 255, 65, 0.02);
+    }
+
+    .term-titlebar {
+      background: rgba(0, 255, 65, 0.07);
+      border-bottom: 1px solid var(--border);
+      padding: 0.45rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .term-dots {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .term-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .term-dot.active {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+    }
+
+    .term-title {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      font-weight: 600;
+    }
+
+    .term-title span {
+      color: var(--green);
+    }
+
+    .term-body {
+      padding: 1.25rem 1.5rem 1.5rem;
+    }
+
+    /* ══ HEADER ══════════════════════════════════════════════════════════════ */
+    header {
+      margin-bottom: 1.5rem;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .ascii-logo {
+      font-size: 0.6rem;
+      line-height: 1.15;
+      color: var(--green);
+      text-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
+      white-space: pre;
+      letter-spacing: 0.02em;
+    }
+
+    .header-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.5rem;
+    }
+
+    .live-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border: 1px solid rgba(0, 255, 65, 0.4);
+      background: rgba(0, 255, 65, 0.06);
+      padding: 0.3rem 0.8rem;
+      border-radius: 2px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 0.12em;
+      text-shadow: 0 0 8px var(--green);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--green);
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      50% {
+        opacity: 0;
+      }
+    }
+
+    .sys-info {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .sys-info span {
+      color: var(--green2);
+    }
+
+    .header-divider {
+      border: none;
+      border-top: 1px solid var(--border2);
+      margin-top: 0.75rem;
+    }
+
+    .header-prompt {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+
+    .header-prompt .p-green {
+      color: var(--green);
+    }
+
+    .header-prompt .p-cyan {
+      color: var(--cyan);
+    }
+
+    .header-prompt .p-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 0.85em;
+      background: var(--green);
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite;
+      margin-left: 2px;
+    }
+
+    /* ══ STATS ROW ═══════════════════════════════════════════════════════════ */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1px;
+      margin-bottom: 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--glow-sm);
+    }
+
+    .stat-card {
+      background: var(--surface);
+      padding: 1.1rem 1.4rem;
+      border-right: 1px solid var(--border2);
+      transition: background 0.2s;
+      position: relative;
+    }
+
+    .stat-card:last-child {
+      border-right: none;
+    }
+
+    .stat-card:hover {
+      background: rgba(0, 255, 65, 0.07);
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 2px;
+      height: 100%;
+      background: var(--green);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .stat-card:hover::before {
+      opacity: 1;
+    }
+
+    .stat-label {
+      font-size: 0.62rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 0.45rem;
+    }
+
+    .stat-label::before {
+      content: '> ';
+      color: var(--green-dim);
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      font-family: var(--font);
+    }
+
+    .stat-value.green {
+      color: var(--green);
+      text-shadow: 0 0 12px rgba(0, 255, 65, 0.5);
+    }
+
+    .stat-value.cyan {
+      color: var(--cyan);
+      text-shadow: 0 0 12px rgba(0, 255, 204, 0.4);
+    }
+
+    .stat-value.amber {
+      color: var(--amber);
+      text-shadow: 0 0 12px rgba(255, 184, 0, 0.4);
+    }
+
+    .stat-sub {
+      font-size: 0.62rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+    }
+
+    /* ══ SECTION HEADER ══════════════════════════════════════════════════════ */
+    .sec-hdr {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--green);
+      text-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+
+    .sec-hdr::before {
+      content: '//';
+      color: var(--green-dim);
+      margin-right: 0.2rem;
+    }
+
+    .sec-line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--border), transparent);
+    }
+
+    .sec-bracket {
+      color: var(--muted);
+      font-size: 0.65rem;
+    }
+
+    /* ══ FLOW SECTION ════════════════════════════════════════════════════════ */
+    .flow-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+      box-shadow: var(--glow-sm);
+    }
+
+    /* Globe + nodes side-by-side layout */
+    .flow-body {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* ── Globe canvas box ── */
+    .globe-box {
+      flex-shrink: 0;
+      position: relative;
+      width: 280px;
+      height: 280px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: radial-gradient(ellipse 70% 70% at 50% 50%,
+          rgba(0, 255, 65, 0.04) 0%, rgba(0, 0, 0, 0.6) 100%);
+      overflow: hidden;
+      box-shadow: 0 0 24px rgba(0, 255, 65, 0.12), inset 0 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .globe-box::before {
+      content: 'NET // TOPOLOGY';
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.55rem;
+      letter-spacing: 0.12em;
+      color: var(--green-dim);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    #globe-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Right side: flow nodes ── */
+    .flow-right {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .flow-nodes-label {
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      margin-bottom: 0.65rem;
+    }
+
+    .flow-track {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      overflow-x: auto;
+      padding-bottom: 0.4rem;
+      flex-wrap: wrap;
+      row-gap: 0.6rem;
+    }
+
+    .flow-track::-webkit-scrollbar {
+      height: 3px;
+    }
+
+    .flow-track::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 99px;
+    }
+
+    .flow-node {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .flow-circle {
+      width: 54px;
+      height: 54px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      background: rgba(0, 255, 65, 0.03);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      transition: all 0.35s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .flow-circle::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0, 255, 65, 0.08), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .flow-circle.active {
+      border-color: var(--green);
+      color: var(--green);
+      box-shadow: 0 0 16px rgba(0, 255, 65, 0.5), inset 0 0 12px rgba(0, 255, 65, 0.08);
+      text-shadow: 0 0 8px var(--green);
+      transform: scale(1.12);
+    }
+
+    .flow-circle.active::after {
+      opacity: 1;
+    }
+
+    .flow-circle.lb-node {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      box-shadow: 0 0 14px rgba(0, 255, 204, 0.4);
+      text-shadow: 0 0 8px var(--cyan);
+    }
+
+    .flow-circle.offline {
+      border-color: rgba(255, 51, 51, 0.3);
+      color: var(--red);
+      opacity: 0.5;
+    }
+
+    .flow-arrow {
+      flex-shrink: 0;
+      color: var(--green-dim);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .flow-label {
+      font-size: 0.58rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* ══ SERVER GRID ═════════════════════════════════════════════════════════ */
+    .server-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 1px;
+      margin-bottom: 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--glow-sm);
+    }
+
+    .server-card {
+      background: var(--surface);
+      padding: 1.1rem 1.25rem;
+      border-right: 1px solid var(--border2);
+      border-bottom: 1px solid var(--border2);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .server-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(to right, var(--green), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .server-card:hover {
+      background: rgba(0, 255, 65, 0.05);
+    }
+
+    .server-card.active::before {
+      opacity: 1;
+    }
+
+    .server-card.active {
+      background: rgba(0, 255, 65, 0.06);
+      box-shadow: inset 0 0 20px rgba(0, 255, 65, 0.05);
+    }
+
+    .server-card.offline {
+      opacity: 0.4;
+    }
+
+    .server-card.offline::before {
+      background: linear-gradient(to right, var(--red), transparent);
+      opacity: 1;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .server-name {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--green);
+      text-shadow: 0 0 6px rgba(0, 255, 65, 0.3);
+    }
+
+    .health-badge {
+      font-size: 0.58rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 2px;
+      letter-spacing: 0.08em;
+      border: 1px solid;
+      transition: all 0.3s;
+    }
+
+    .health-badge.online {
+      color: var(--green);
+      border-color: rgba(0, 255, 65, 0.4);
+      background: rgba(0, 255, 65, 0.08);
+      text-shadow: 0 0 6px var(--green);
+    }
+
+    .health-badge.offline {
+      color: var(--red);
+      border-color: rgba(255, 51, 51, 0.4);
+      background: rgba(255, 51, 51, 0.06);
+    }
+
+    .health-badge.active {
+      color: var(--green);
+      border-color: var(--green);
+      background: rgba(0, 255, 65, 0.12);
+      box-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
+    }
+
+    .card-url {
+      font-size: 0.62rem;
+      color: var(--muted);
+      margin-bottom: 0.85rem;
+      letter-spacing: 0.03em;
+    }
+
+    .card-url::before {
+      content: '$ ';
+      color: var(--green-dim);
+    }
+
+    .card-stat-label {
+      font-size: 0.6rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.2rem;
+    }
+
+    .card-requests {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+      font-family: var(--font);
+      transition: color 0.3s;
+    }
+
+    .card-requests.counting {
+      color: var(--green);
+      text-shadow: 0 0 12px rgba(0, 255, 65, 0.5);
+    }
+
+    .bar-wrap {
+      margin-top: 0.85rem;
+      background: rgba(0, 255, 65, 0.05);
+      border: 1px solid var(--border2);
+      height: 3px;
+      border-radius: 0;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      width: 0%;
+      transition: width 0.6s ease;
+    }
+
+    .server-card.offline .bar-fill {
+      background: var(--red);
+      box-shadow: 0 0 6px var(--red);
+    }
+
+    /* ══ LOG FEED ════════════════════════════════════════════════════════════ */
+    .log-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--glow-sm);
+    }
+
+    .log-header {
+      background: rgba(0, 255, 65, 0.05);
+      border-bottom: 1px solid var(--border2);
+      padding: 0.6rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .log-title {
+      font-size: 0.67rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--green);
+      text-shadow: 0 0 6px rgba(0, 255, 65, 0.3);
+    }
+
+    .log-title::before {
+      content: '[ ';
+      color: var(--muted);
+    }
+
+    .log-title::after {
+      content: ' ]';
+      color: var(--muted);
+    }
+
+    .log-count {
+      font-size: 0.6rem;
+      color: var(--muted);
+    }
+
+    .log-body {
+      padding: 0.75rem 1.25rem 1rem;
+    }
+
+    .log-feed {
+      font-family: var(--font);
+      font-size: 0.72rem;
+      max-height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .log-feed::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .log-feed::-webkit-scrollbar-thumb {
+      background: var(--border);
+    }
+
+    .log-entry {
+      display: flex;
+      gap: 0.6rem;
+      align-items: baseline;
+      animation: slideIn 0.2s ease;
+      padding: 0.15rem 0;
+      border-bottom: 1px solid rgba(0, 255, 65, 0.03);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .log-time {
+      color: var(--green-dim);
+      flex-shrink: 0;
+    }
+
+    .log-prompt {
+      color: var(--green);
+      flex-shrink: 0;
+    }
+
+    .log-server {
+      color: var(--cyan);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .log-arrow {
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .log-text {
+      color: var(--text);
+    }
+
+    .log-ok {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    /* ══ FOOTER ══════════════════════════════════════════════════════════════ */
+    footer {
+      margin-top: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      font-size: 0.62rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border2);
+      padding-top: 0.75rem;
+    }
+
+    footer a {
+      color: var(--cyan);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-shadow: 0 0 6px var(--cyan);
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* ══ RESPONSIVE ══════════════════════════════════════════════════════════ */
+    @media (max-width: 600px) {
+      .ascii-logo {
+        font-size: 0.42rem;
+      }
+
+      .stats-row {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Matrix rain background -->
+  <canvas id="matrix-bg"></canvas>
+
+  <div class="wrapper">
+
+    <!-- ── HEADER ──────────────────────────────────────────────────────────── -->
+    <header>
+      <div class="term-window" style="margin-bottom:1.25rem;">
+        <div class="term-titlebar">
+          <div class="term-dots">
+            <div class="term-dot active"></div>
+            <div class="term-dot active"></div>
+            <div class="term-dot"></div>
+          </div>
+          <div class="term-title">root@<span>rr-balancer</span>:~# ./monitor --live</div>
+        </div>
+        <div class="term-body">
+          <div class="header-top">
+            <pre class="ascii-logo">██████╗ ██████╗       ██████╗  █████╗ ██╗      █████╗ ███╗   ██╗ ██████╗███████╗██████╗
+██╔══██╗██╔══██╗      ██╔══██╗██╔══██╗██║     ██╔══██╗████╗  ██║██╔════╝██╔════╝██╔══██╗
+██████╔╝██████╔╝█████╗██████╔╝███████║██║     ███████║██╔██╗ ██║██║     █████╗  ██████╔╝
+██╔══██╗██╔══██╗╚════╝██╔══██╗██╔══██║██║     ██╔══██║██║╚██╗██║██║     ██╔══╝  ██╔══██╗
+██║  ██║██║  ██║      ██████╔╝██║  ██║███████╗██║  ██║██║ ╚████║╚██████╗███████╗██║  ██║
+╚═╝  ╚═╝╚═╝  ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚══════╝╚═╝  ╚═╝</pre>
+            <div class="header-meta">
+              <div class="live-pill">
+                <div class="pulse-dot"></div> ONLINE
+              </div>
+              <div class="sys-info">SYS&nbsp;&nbsp;: <span>ROUND-ROBIN v1.0</span><br>NODES: <span>5
+                  BACKENDS</span><br>PORT : <span>:8000</span></div>
+            </div>
+          </div>
+          <hr class="header-divider">
+          <div class="header-prompt">
+            <span class="p-green">root@rr-balancer</span>:<span class="p-cyan">~/balancer</span>$ monitoring all nodes —
+            refreshing every 2s<span class="p-cursor"></span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── STATS ROW ───────────────────────────────────────────────────────── -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Requests</div>
+        <div class="stat-value green" id="total-requests">0</div>
+        <div class="stat-sub">since startup</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active Nodes</div>
+        <div class="stat-value green" id="active-count">0 / 5</div>
+        <div class="stat-sub">healthy backends</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Uptime</div>
+        <div class="stat-value cyan" id="uptime">0s</div>
+        <div class="stat-sub">load balancer</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Poll Interval</div>
+        <div class="stat-value amber">2s</div>
+        <div class="stat-sub">auto-refresh</div>
+      </div>
+    </div>
+
+    <!-- ── FLOW TRACK + GLOBE ─────────────────────────────────────────────── -->
+    <div class="flow-section">
+      <div class="sec-hdr">Request Flow <div class="sec-line"></div><span class="sec-bracket">[ ROUND-ROBIN ]</span>
+      </div>
+      <div class="flow-body">
+
+        <!-- Rotating Globe Box -->
+        <div class="globe-box">
+          <canvas id="globe-canvas" width="280" height="280"></canvas>
+        </div>
+
+        <!-- Flow Nodes Panel -->
+        <div class="flow-right">
+          <div class="flow-nodes-label">> ACTIVE ROUTING PATH</div>
+          <div class="flow-track" id="flow-track">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Globe Animation Script -->
+    <script>
+      (function () {
+        const canvas = document.getElementById('globe-canvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width, H = canvas.height;
+        const cx = W / 2, cy = H / 2;
+        const R = 90; // globe radius
+
+        let rot = 0;
+        let pulse = 0;
+
+        // 5 server node positions (angle from center of globe, on right side)
+        const serverAngles = [-70, -35, 0, 35, 70]; // degrees from horizontal right
+        const nodeR = 118; // distance from center to node
+
+        function degToRad(d) { return d * Math.PI / 180; }
+
+        function getNodePos(angleDeg) {
+          const a = degToRad(angleDeg);
+          return {
+            x: cx + nodeR * Math.cos(a),
+            y: cy + nodeR * Math.sin(a)
+          };
+        }
+
+        // Packets: one per server
+        const packets = serverAngles.map((_, i) => ({
+          t: (i / serverAngles.length),  // staggered start
+          speed: 0.007 + Math.random() * 0.005,
+          active: true
+        }));
+
+        // Globe latitude lines
+        function drawLatLines(rotAngle) {
+          const latSteps = 7;
+          for (let i = 1; i < latSteps; i++) {
+            const phi = (i / latSteps) * Math.PI;
+            const ry = R * Math.sin(phi);   // radius at this latitude
+            const yOff = cy - R * Math.cos(phi); // vertical offset
+
+            // Ellipse simulating perspective
+            ctx.beginPath();
+            ctx.ellipse(cx, yOff, ry * 0.95, ry * 0.25, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(0,255,65,0.12)`;
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+          }
+        }
+
+        // Globe longitude lines
+        function drawLonLines(rotAngle) {
+          const lonCount = 8;
+          for (let i = 0; i < lonCount; i++) {
+            const baseAngle = (i / lonCount) * Math.PI + rotAngle;
+            const rx = R * Math.abs(Math.cos(baseAngle));
+            const visible = Math.cos(baseAngle) > 0 ? 0.18 : 0.05;
+
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, rx, R * 0.98, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(0,255,65,${visible})`;
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+          }
+        }
+
+        // Draw a few random dots on globe surface (fake continents)
+        const continentDots = Array.from({ length: 28 }, () => ({
+          theta: Math.random() * Math.PI * 2, // longitude
+          phi: Math.random() * Math.PI,     // latitude
+          size: 1.2 + Math.random() * 2.2
+        }));
+
+        function drawContinents(rotAngle) {
+          continentDots.forEach(d => {
+            const lon = d.theta + rotAngle;
+            const cosLon = Math.cos(lon);
+            if (cosLon < 0) return; // back of globe
+            const x = cx + R * cosLon * Math.sin(d.phi) * 0.95;
+            const y = cy - R * Math.cos(d.phi) * 0.98;
+            const opacity = 0.5 + 0.5 * cosLon;
+            ctx.beginPath();
+            ctx.arc(x, y, d.size, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0,255,65,${0.25 * opacity})`;
+            ctx.fill();
+          });
+        }
+
+        // Bezier packet path between globe edge and node
+        function getPath(serverIdx) {
+          const angleDeg = serverAngles[serverIdx];
+          const a = degToRad(angleDeg);
+          const end = getNodePos(angleDeg);
+          // Globe edge point (where connection exits globe surface)
+          const sx = cx + R * Math.cos(a);
+          const sy = cy + R * Math.sin(a);
+          // Control point (arc outward)
+          const mx = sx + (end.x - sx) * 0.5 + (Math.random() < 0.5 ? 10 : -10);
+          const my = sy + (end.y - sy) * 0.5;
+          return { sx, sy, mx, my, ex: end.x, ey: end.y };
+        }
+
+        function getBezierPoint(t, p) {
+          const u = 1 - t;
+          return {
+            x: u * u * p.sx + 2 * u * t * p.mx + t * t * p.ex,
+            y: u * u * p.sy + 2 * u * t * p.my + t * t * p.ey
+          };
+        }
+
+        // Cache paths (recalculate occasionally)
+        let paths = serverAngles.map((_, i) => getPath(i));
+
+        function drawConnections(activeIdx) {
+          serverAngles.forEach((angleDeg, i) => {
+            const p = paths[i];
+            const isActive = i === activeIdx;
+
+            // Draw the curve
+            ctx.beginPath();
+            ctx.moveTo(p.sx, p.sy);
+            ctx.quadraticCurveTo(p.mx, p.my, p.ex, p.ey);
+            ctx.strokeStyle = isActive
+              ? 'rgba(0,255,204,0.55)'
+              : 'rgba(0,255,65,0.15)';
+            ctx.lineWidth = isActive ? 1.5 : 0.8;
+            ctx.setLineDash(isActive ? [] : [3, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Node circle
+            const end = getNodePos(angleDeg);
+            ctx.beginPath();
+            ctx.arc(end.x, end.y, isActive ? 6 : 4, 0, Math.PI * 2);
+            ctx.fillStyle = isActive ? 'rgba(0,255,204,0.9)' : 'rgba(0,255,65,0.4)';
+            ctx.fill();
+            if (isActive) {
+              ctx.beginPath();
+              ctx.arc(end.x, end.y, 9 + Math.sin(pulse * 0.12) * 2, 0, Math.PI * 2);
+              ctx.strokeStyle = 'rgba(0,255,204,0.35)';
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+            }
+
+            // Packet dot
+            const pk = packets[i];
+            pk.t += pk.speed;
+            if (pk.t > 1) pk.t = 0;
+            const pt = getBezierPoint(pk.t, p);
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, isActive ? 3.5 : 2, 0, Math.PI * 2);
+            ctx.fillStyle = isActive ? '#00ffcc' : 'rgba(0,255,65,0.7)';
+            ctx.shadowColor = isActive ? '#00ffcc' : '#00ff41';
+            ctx.shadowBlur = isActive ? 10 : 4;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Server label
+            ctx.font = '500 8px JetBrains Mono, monospace';
+            ctx.fillStyle = isActive ? 'rgba(0,255,204,0.9)' : 'rgba(0,255,65,0.4)';
+            ctx.textAlign = 'center';
+            ctx.fillText(`S${i + 1}`, end.x, end.y + (angleDeg >= 0 ? 15 : -8));
+          });
+        }
+
+        function draw() {
+          ctx.clearRect(0, 0, W, H);
+
+          // Globe fill
+          const grd = ctx.createRadialGradient(cx - 28, cy - 28, 10, cx, cy, R);
+          grd.addColorStop(0, 'rgba(0,40,15,0.85)');
+          grd.addColorStop(1, 'rgba(0,10,4,0.95)');
+          ctx.beginPath();
+          ctx.arc(cx, cy, R, 0, Math.PI * 2);
+          ctx.fillStyle = grd;
+          ctx.fill();
+
+          // Globe glow ring
+          ctx.beginPath();
+          ctx.arc(cx, cy, R, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(0,255,65,${0.25 + 0.05 * Math.sin(pulse * 0.05)})`;
+          ctx.lineWidth = 1.5;
+          ctx.shadowColor = '#00ff41';
+          ctx.shadowBlur = 14;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+
+          // Outer pulse rings
+          for (let r = 0; r < 3; r++) {
+            const rr = R + 8 + r * 14 + (pulse * 0.3) % 14;
+            const alpha = Math.max(0, 0.12 - r * 0.04 - ((pulse * 0.3) % 14) / 14 * 0.12);
+            ctx.beginPath();
+            ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(0,255,65,${alpha})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+
+          drawLatLines(rot);
+          drawLonLines(rot);
+          drawContinents(rot);
+
+          // Center glowing dot (LB node)
+          ctx.beginPath();
+          ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+          ctx.fillStyle = '#00ffcc';
+          ctx.shadowColor = '#00ffcc';
+          ctx.shadowBlur = 14;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.font = '600 7px JetBrains Mono, monospace';
+          ctx.fillStyle = 'rgba(0,255,204,0.8)';
+          ctx.textAlign = 'center';
+          ctx.fillText('LB', cx, cy + 16);
+
+          // Connections to servers
+          const activeIdx = (window.globeActiveIdx !== undefined) ? window.globeActiveIdx : -1;
+          drawConnections(activeIdx);
+
+          rot += 0.004;
+          pulse += 1;
+          requestAnimationFrame(draw);
+        }
+
+        draw();
+      })();
+    </script>
+
+    <!-- ── SERVER GRID ─────────────────────────────────────────────────────── -->
+    <div class="sec-hdr" style="margin-bottom:0.75rem;">
+      Backend Nodes <div class="sec-line"></div><span class="sec-bracket">[ LIVE STATUS ]</span>
+    </div>
+    <div class="server-grid" id="server-grid">
+      <!-- Injected by JS -->
+    </div>
+
+    <!-- ── LOG FEED ─────────────────────────────────────────────────────────── -->
+    <div class="log-section">
+      <div class="log-header">
+        <div class="log-title">SYSTEM LOG</div>
+        <div class="log-count" id="log-count">0 entries</div>
+      </div>
+      <div class="log-body">
+        <div class="log-feed" id="log-feed">
+          <div class="log-entry">
+            <span class="log-time">--:--:--</span>
+            <span class="log-prompt">$</span>
+            <span class="log-text">waiting for incoming requests...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FOOTER ──────────────────────────────────────────────────────────── -->
+    <footer>
+      <span>RR-BALANCER // built with Go &amp; Python Flask</span>
+      <div class="footer-right">
+        <a href="/metrics" target="_blank">/metrics.json</a>
+        <span>auto-refresh: 2000ms</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Matrix Rain Script -->
+  <script>
+    (function () {
+      const canvas = document.getElementById('matrix-bg');
+      const ctx = canvas.getContext('2d');
+      let cols, drops;
+      const CHARS = 'アイウエオカキクケコサシスセソタチツテトABCDEFGHIJKLMN0123456789><=/\\|{}[]';
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        cols = Math.floor(canvas.width / 16);
+        drops = Array(cols).fill(1);
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      function draw() {
+        ctx.fillStyle = 'rgba(2,9,6,0.05)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#00ff41';
+        ctx.font = '13px JetBrains Mono, monospace';
+        drops.forEach((y, i) => {
+          const char = CHARS[Math.floor(Math.random() * CHARS.length)];
+          ctx.fillText(char, i * 16, y * 16);
+          if (y * 16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+          drops[i]++;
+        });
+      }
+      setInterval(draw, 55);
+    })();
+  </script>
+
+  <script src="/static/app.js"></script>
+</body>
+
+</html>
