@@ -114,8 +114,8 @@ ROUND ROBIN LOAD BALANCER/
 ### Step 1 — Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/round-robin-load-balancer.git
-cd "round-robin-load-balancer"
+git clone https://github.com/YOUR_USERNAME/ROUND-ROBIN-LOAD-BALANCER.git
+cd "ROUND-ROBIN-LOAD-BALANCER"
 ```
 
 ### Step 2 — Install Python dependencies
